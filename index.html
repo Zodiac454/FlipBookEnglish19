@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>The Cake of English Tenses — интерактивная книга</title>
+<meta name="description" content="The Cake of English Tenses: 12 Tenses — One Amazing System! Интерактивная книга с эффектом перелистывания страниц. Работает и на компьютере, и на телефоне.">
+<meta name="author" content="Надопта Олеся Владимировна">
+<meta name="theme-color" content="#0b0f14">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cake of Tenses">
+
+<meta property="og:type" content="book">
+<meta property="og:title" content="The Cake of English Tenses: 12 Tenses — One Amazing System!">
+<meta property="og:description" content="Интерактивная книга с эффектом перелистывания страниц.">
+<meta property="og:image" content="thumbs/p001.webp">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍰</text></svg>">
+<link rel="preload" as="image" href="thumbs/p001.webp">
+<link rel="preload" as="image" href="thumbs/p002.webp">
+<link rel="stylesheet" href="assets/style.css">
+<script>
+  /* Предзагружаем именно ту страницу, с которой открываемся: при ссылке вида
+     #p=12 тянуть ещё и первую — зряшные полмегабайта. */
+  (function () {
+    var TOTAL = 41;                       // совпадает с TOTAL в assets/app.js
+    var m = /(?:^|[#&?])p=(\d+)/.exec(location.hash) || /[?&]page=(\d+)/.exec(location.search);
+    var n = m ? Math.min(TOTAL, Math.max(1, parseInt(m[1], 10) || 1)) : 1;
+    var link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = 'pages/p' + String(n).padStart(3, '0') + '.webp';
+    document.head.appendChild(link);
+  })();
+</script>
+</head>
+<body>
+
+<div id="app" data-chrome="shown">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">🍰</span>
+      <span class="brand-text">
+        <strong>The Cake of English Tenses</strong>
+        <span class="brand-sub">12 Tenses · One Amazing System <i>·</i> Надопта О. В.</span>
+      </span>
+    </div>
+
+    <div class="tools">
+      <button id="btn-zoom-out" class="tool" type="button" title="Уменьшить" aria-label="Уменьшить масштаб">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.5 10.5h6M20 20l-4.6-4.6"/></svg>
+      </button>
+      <button id="btn-zoom-in" class="tool" type="button" title="Увеличить" aria-label="Увеличить масштаб">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M7.5 10.5h6M10.5 7.5v6M20 20l-4.6-4.6"/></svg>
+      </button>
+      <button id="btn-share" class="tool" type="button" title="Скопировать ссылку на эту страницу" aria-label="Скопировать ссылку на страницу">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5a4.5 4.5 0 0 0 6.4 0l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.3 1.3"/><path d="M13.5 10.5a4.5 4.5 0 0 0-6.4 0l-2.6 2.6a4.5 4.5 0 0 0 6.4 6.4l1.3-1.3"/></svg>
+      </button>
+      <button id="btn-thumbs" class="tool" type="button" title="Все страницы" aria-pressed="false" aria-label="Показать все страницы">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>
+      </button>
+      <button id="btn-full" class="tool" type="button" title="Во весь экран" aria-label="Во весь экран">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9.5v-5h5M19.5 9.5v-5h-5M4.5 14.5v5h5M19.5 14.5v5h-5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <div id="book-scale">
+      <div id="book-holder">
+        <div id="book" aria-label="Страницы книги"></div>
+      </div>
+    </div>
+
+    <button id="nav-prev" class="nav" type="button" aria-label="Предыдущая страница" title="Назад">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button id="nav-next" class="nav" type="button" aria-label="Следующая страница" title="Вперёд">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+
+    <div id="zoom-shield" hidden></div>
+
+    <button id="zoom-chip" class="chip" type="button" hidden>
+      <span id="zoom-value">100 %</span>
+      <span class="chip-hint">сбросить</span>
+    </button>
+
+    <div id="hint" hidden>Листайте: свайп, стрелки или касание у края страницы</div>
+
+    <div id="hud">
+      <button id="hud-prev" class="hud-step" type="button" aria-label="Предыдущая страница">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>
+      </button>
+      <output id="page-label" aria-live="polite">1 / 41</output>
+      <input id="slider" type="range" min="1" max="41" value="1" step="1" aria-label="Номер страницы">
+      <button id="hud-next" class="hud-step" type="button" aria-label="Следующая страница">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>
+      </button>
+    </div>
+  </main>
+
+  <aside id="thumbs" aria-label="Все страницы" aria-hidden="true" inert>
+    <div class="thumbs-head">
+      <span>Все страницы</span>
+      <button id="thumbs-close" class="tool tool-sm" type="button" aria-label="Закрыть список страниц">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="thumbs-list"></div>
+  </aside>
+</div>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="loader-card">
+    <div class="loader-cake" aria-hidden="true">🍰</div>
+    <div class="loader-title">The Cake of English Tenses</div>
+    <div class="loader-sub">Открываем книгу…</div>
+    <div class="loader-bar"><span id="loader-fill"></span></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<noscript>
+  <p style="padding:2rem;font:16px/1.6 Georgia,serif;color:#f2f6fa">
+    Для чтения книги нужен JavaScript. Страницы лежат в папке <code>pages/</code> — их можно открыть и по отдельности.
+  </p>
+</noscript>
+
+<script src="assets/vendor/page-flip.browser.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

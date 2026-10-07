@@ -1,0 +1,877 @@
+/* ==========================================================================
+   The Cake of English Tenses — интерактивная книга
+   Оформление вьюера. Классы stf__* принадлежат библиотеке StPageFlip —
+   их не трогаем, оформляем только окружение.
+   Порядок разделов: переменные → каркас → сцена → книга → управление
+   → панель страниц → уведомления → адаптив/доступность.
+   ========================================================================== */
+
+:root {
+  /* палитра «читальный зал» */
+  --ink:        #eef3f8;
+  --ink-soft:   #b9c6d4;
+  --ink-dim:    #8494a6;
+  --bg-deep:    #080b10;
+  --bg:         #0e141b;
+  --bg-raise:   #161f29;
+
+  --accent:     #e9b04c;
+  --accent-lit: #ffd68a;
+  --accent-dim: rgba(233, 176, 76, .22);
+
+  --line:       rgba(255, 255, 255, .10);
+  --line-lit:   rgba(255, 255, 255, .20);
+  --glass:      rgba(255, 255, 255, .055);
+  --glass-lit:  rgba(255, 255, 255, .13);
+
+  /* движение: только transform/opacity, только сильные кривые */
+  --ease-out:     cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out:  cubic-bezier(.77, 0, .175, 1);
+  --ease-drawer:  cubic-bezier(.32, .72, 0, 1);
+  --t-press: 140ms;
+  --t-ui:    200ms;
+  --t-panel: 280ms;
+
+  --radius:  12px;
+  --radius-lg: 16px;
+  --hud-space: 76px;             /* запас под нижнюю панель — от него считаем поля сцены */
+  --shadow-book: 0 34px 70px -18px rgba(0, 0, 0, .78), 0 8px 24px -8px rgba(0, 0, 0, .5);
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text",
+             "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+  --font-book: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Charter, serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* фон: глубокий градиент + тёплый «свет лампы» над книгой + зерно */
+body::before,
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; }
+
+body::before {
+  background:
+    radial-gradient(120% 78% at 50% -14%, #1e2a37 0%, rgba(30, 42, 55, 0) 58%),
+    radial-gradient(90% 70% at 88% 108%, #17222d 0%, rgba(23, 34, 45, 0) 60%),
+    radial-gradient(60% 40% at 50% 42%, rgba(233, 176, 76, .07) 0%, rgba(233, 176, 76, 0) 70%),
+    linear-gradient(168deg, var(--bg) 0%, #0b1118 55%, var(--bg-deep) 100%);
+  z-index: -2;
+}
+
+body::after {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.42'/></svg>");
+  opacity: .05;
+  mix-blend-mode: overlay;
+  z-index: -1;
+}
+
+#app {
+  position: relative;
+  display: grid;
+  /* minmax(0, 1fr) обязателен: без него строка растёт по содержимому,
+     а содержимое (высота книги) зависит от размера строки — обратная связь */
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  transition: opacity var(--t-ui) var(--ease-out);
+}
+
+/* ── Верхняя панель ─────────────────────────────────────────────────────── */
+
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: calc(9px + var(--safe-t)) calc(14px + var(--safe-r)) 9px calc(14px + var(--safe-l));
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(to bottom, rgba(10, 14, 19, .82), rgba(10, 14, 19, .58));
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  z-index: 30;
+}
+
+.brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  font-size: 17px;
+  background: linear-gradient(150deg, rgba(233, 176, 76, .26), rgba(233, 176, 76, .06));
+  border: 1px solid rgba(233, 176, 76, .28);
+}
+
+.brand-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+
+.brand-text strong {
+  font-family: var(--font-book);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-sub {
+  font-size: 11.5px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-sub i { font-style: normal; opacity: .5; padding: 0 2px; }
+
+.tools { margin-left: auto; display: flex; gap: 7px; }
+
+.tool {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--glass);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--t-ui) var(--ease-out),
+              border-color var(--t-ui) var(--ease-out),
+              color var(--t-ui) var(--ease-out),
+              transform var(--t-press) var(--ease-out);
+}
+
+.tool:active { transform: scale(.94); color: var(--ink); }
+.tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tool[disabled] { opacity: .3; cursor: default; transform: none; }
+.tool[hidden] { display: none; }
+.tool-sm { width: 32px; height: 32px; border-radius: 9px; }
+
+.tool[aria-pressed="true"] {
+  background: var(--accent-dim);
+  border-color: rgba(233, 176, 76, .5);
+  color: var(--accent-lit);
+}
+
+.tool svg, .nav svg, .hud-step svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Сцена ──────────────────────────────────────────────────────────────── */
+
+#stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 20px 20px var(--hud-space);
+}
+
+#book-scale {
+  transform-origin: 50% 50%;
+  will-change: transform;
+  touch-action: none;               /* жесты книги обрабатываем сами */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 280ms var(--ease-out);
+}
+
+#book-scale.dragging { transition: none; }
+
+#book-holder {
+  position: relative;
+  width: 700px;
+}
+
+/* тень на «столе» под книгой */
+#book-holder::after {
+  content: "";
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  bottom: -18px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, .72), rgba(0, 0, 0, .28) 45%, transparent 74%);
+  filter: blur(9px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ── Страницы ───────────────────────────────────────────────────────────── */
+
+.page { display: none; }             /* до инициализации библиотеки не показываем */
+
+.page-inner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+.page .lqip {
+  position: absolute;
+  inset: -6px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px);
+  opacity: 1;
+  transition: opacity 420ms var(--ease-out);
+}
+
+.page .sheet {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 380ms var(--ease-out);
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+.page.is-loaded .sheet { opacity: 1; }
+.page.is-loaded .lqip { opacity: 0; }
+
+/* пометка, если страница так и не загрузилась */
+.page-note {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(24, 14, 6, .84);
+  color: #ffd8a4;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-ui) var(--ease-out);
+}
+
+.page.is-failed .page-note { opacity: 1; }
+
+/* корешок: тень у внутреннего края страницы и лёгкая тень у внешнего */
+.stf__wrapper.--landscape .page.--left .page-inner::after,
+.stf__wrapper.--landscape .page.--right .page-inner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stf__wrapper.--landscape .page.--left .page-inner::after {
+  background: linear-gradient(to right, rgba(0, 0, 0, .30) 0%, rgba(0, 0, 0, .10) 3%, rgba(0, 0, 0, 0) 10%);
+}
+
+.stf__wrapper.--landscape .page.--right .page-inner::after {
+  background: linear-gradient(to left, rgba(0, 0, 0, .30) 0%, rgba(0, 0, 0, .10) 3%, rgba(0, 0, 0, 0) 10%);
+}
+
+/* внешний обрез: скругление и тонкая тень «стопки» */
+.stf__wrapper.--landscape .page.--left .page-inner {
+  border-radius: 3px 0 0 3px;
+  box-shadow: -2px 0 0 -1px rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+.stf__wrapper.--landscape .page.--right .page-inner {
+  border-radius: 0 3px 3px 0;
+  box-shadow: 2px 0 0 -1px rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .35);
+}
+
+.stf__wrapper.--portrait .page-inner { border-radius: 3px; }
+
+/* обложка — жёсткая: тень от сгиба и чуть глубже контур */
+.page[data-density="hard"] .page-inner {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .45), 0 14px 40px -12px rgba(0, 0, 0, .6);
+}
+
+.page[data-density="hard"].--left .page-inner::before,
+.page[data-density="hard"].--right .page-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(0, 0, 0, .16), rgba(0, 0, 0, 0) 5%);
+}
+
+/* ── Стрелки по бокам (мышь) ────────────────────────────────────────────── */
+
+.nav {
+  position: absolute;
+  top: calc(50% - 30px);
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(12, 17, 23, .5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--ink-soft);
+  cursor: pointer;
+  z-index: 20;
+  transition: background var(--t-ui) var(--ease-out),
+              color var(--t-ui) var(--ease-out),
+              border-color var(--t-ui) var(--ease-out),
+              transform var(--t-press) var(--ease-out),
+              opacity var(--t-ui) var(--ease-out);
+}
+
+.nav svg { width: 24px; height: 24px; stroke-width: 2; }
+.nav:active { transform: translateY(-50%) scale(.92); }
+.nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.nav[disabled] { opacity: .18; cursor: default; transform: translateY(-50%); }
+
+#nav-prev { left: calc(14px + var(--safe-l)); }
+#nav-next { right: calc(14px + var(--safe-r)); }
+
+/* ── Нижняя панель ──────────────────────────────────────────────────────── */
+
+#hud {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 14, 19, .72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 16px 34px -14px rgba(0, 0, 0, .8);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  z-index: 20;
+  transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out);
+}
+
+#page-label {
+  min-width: 58px;
+  text-align: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+}
+
+.hud-step {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--t-ui) var(--ease-out), color var(--t-ui) var(--ease-out),
+              transform var(--t-press) var(--ease-out);
+}
+
+.hud-step svg { width: 17px; height: 17px; stroke-width: 2; }
+.hud-step:active { transform: scale(.9); }
+.hud-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hud-step[disabled] { opacity: .25; cursor: default; }
+
+#slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: clamp(110px, 24vw, 300px);
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+
+#slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--progress, 0%), rgba(255, 255, 255, .16) var(--progress, 0%));
+}
+
+#slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55);
+  transition: transform var(--t-press) var(--ease-out);
+}
+
+#slider:active::-webkit-slider-thumb { transform: scale(1.18); }
+
+#slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .16);
+}
+
+#slider::-moz-range-progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+#slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .55);
+}
+
+#slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* ── Чип масштаба и подсказка ───────────────────────────────────────────── */
+
+.chip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(60px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 14, 19, .78);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  z-index: 21;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: chip-in 220ms var(--ease-out) both;
+}
+
+.chip .chip-hint { color: var(--accent); font-size: 12px; }
+.chip:active { transform: translateX(-50%) scale(.96); }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes chip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(.96); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+#hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(66px + var(--safe-b));
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 14, 19, .76);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 19;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: hint-in 380ms var(--ease-out) both, hint-out 600ms var(--ease-out) 6s both;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes hint-out {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: translateX(-50%) translateY(6px); }
+}
+
+/* ── Панель всех страниц ────────────────────────────────────────────────── */
+
+#thumbs {
+  grid-column: 2;
+  grid-row: 2;
+  position: relative;
+  width: 0;
+  overflow: hidden;
+  border-left: 1px solid transparent;
+  background: linear-gradient(to left, rgba(12, 17, 23, .92), rgba(12, 17, 23, .72));
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  transition: width var(--t-panel) var(--ease-drawer), border-color var(--t-panel) var(--ease-out);
+  z-index: 25;
+}
+
+#thumbs.open { width: 232px; border-left-color: var(--line); }
+
+.thumbs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px 0 14px;
+  font-size: 11px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+#thumbs-list {
+  height: calc(100% - 44px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 10px;
+  --thumb-w: 190px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .2) transparent;
+  overscroll-behavior: contain;
+}
+
+#thumbs-list::-webkit-scrollbar { width: 8px; }
+#thumbs-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); border-radius: 4px; }
+
+.thumb {
+  position: relative;
+  flex: 1 1 var(--thumb-w, 190px);   /* тянется на строку, но не мельче заданного */
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  transform: translateY(0);
+  box-shadow: 0 4px 10px -6px rgba(0, 0, 0, .7);
+  transition: transform var(--t-ui) var(--ease-out), border-color var(--t-ui) var(--ease-out),
+              box-shadow var(--t-ui) var(--ease-out);
+  animation: thumb-in 320ms var(--ease-out) both;
+}
+
+@keyframes thumb-in {
+  from { opacity: 0; transform: translateY(8px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* обложка — одна страница, как закрытая книга */
+.thumb-single { flex: 0 1 calc(var(--thumb-w, 190px) / 2); }
+
+.thumb-pair {
+  display: flex;
+  gap: 1px;                          /* тонкая тень корешка между страницами */
+  background: rgba(0, 0, 0, .22);
+}
+
+.thumb-pair img {
+  display: block;
+  width: 50%;
+  height: auto;
+  min-width: 0;
+  aspect-ratio: 1400 / 2010;
+  object-fit: cover;
+}
+
+.thumb-single .thumb-pair img { width: 100%; }
+
+.thumb-label {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.thumb:active { transform: scale(.97); }
+.thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.thumb.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim), 0 6px 16px -8px rgba(0, 0, 0, .8);
+}
+
+/* ── Щит перетаскивания при увеличении ──────────────────────────────────── */
+
+#zoom-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  cursor: grab;
+  touch-action: none;
+}
+
+#zoom-shield.dragging { cursor: grabbing; }
+#zoom-shield[hidden] { display: none; }
+
+/* ── Тосты и загрузка ───────────────────────────────────────────────────── */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(78px + var(--safe-b));
+  transform: translate(-50%, 12px);
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(10, 14, 19, .93);
+  box-shadow: 0 20px 40px -18px rgba(0, 0, 0, .9);
+  font-size: 13px;
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out);
+  z-index: 60;
+}
+
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+#loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(70% 50% at 50% 34%, rgba(233, 176, 76, .09), transparent 70%),
+    linear-gradient(168deg, var(--bg) 0%, #0b1118 60%, var(--bg-deep) 100%);
+  z-index: 100;
+  transition: opacity 420ms var(--ease-out), transform 420ms var(--ease-out);
+}
+
+#loader.done { opacity: 0; transform: scale(1.02); pointer-events: none; }
+
+.loader-card { text-align: center; padding: 0 24px; }
+
+.loader-cake { font-size: 54px; animation: bake 2.1s var(--ease-in-out) infinite; }
+
+@keyframes bake {
+  0%, 100% { transform: translateY(0) rotate(-2.5deg); }
+  50%      { transform: translateY(-10px) rotate(2.5deg); }
+}
+
+.loader-title {
+  margin-top: 14px;
+  font-family: var(--font-book);
+  font-size: 19px;
+  letter-spacing: -.01em;
+}
+
+.loader-sub { margin-top: 7px; font-size: 12.5px; color: var(--ink-dim); }
+
+.loader-bar {
+  margin: 16px auto 0;
+  width: 216px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, .12);
+  overflow: hidden;
+}
+
+#loader-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-lit));
+  transition: width 220ms var(--ease-out);
+}
+
+/* ── Hover-эффекты только там, где есть настоящий указатель ─────────────── */
+
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover { background: var(--glass-lit); border-color: var(--line-lit); color: var(--ink); }
+  .hud-step:hover { background: var(--glass-lit); color: var(--ink); }
+  .nav:hover { background: rgba(255, 255, 255, .16); color: var(--ink); border-color: var(--line-lit); }
+  .thumb:hover { transform: translateY(-3px); border-color: var(--line-lit); box-shadow: 0 10px 20px -10px rgba(0, 0, 0, .85); }
+  .chip:hover { background: rgba(20, 27, 35, .9); color: var(--ink); }
+}
+
+/* ── Компактный режим для низких экранов (телефон в альбомной) ──────────── */
+
+@media (max-height: 560px) {
+  #stage { --hud-space: 74px; padding: 8px 12px var(--hud-space); }
+  .topbar { padding-top: calc(5px + var(--safe-t)); padding-bottom: 5px; }
+  .brand-mark { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
+  .brand-text strong { font-size: 14px; }
+  .brand-sub { display: none; }
+  .tool { width: 32px; height: 32px; border-radius: 9px; }
+  .tool svg { width: 17px; height: 17px; }
+  #hud { bottom: calc(8px + var(--safe-b)); padding: 4px 8px; }
+  .nav { width: 42px; height: 42px; }
+  #hint { bottom: calc(52px + var(--safe-b)); }
+  .chip { bottom: calc(50px + var(--safe-b)); }
+}
+
+/* ── Телефоны: нижняя панель, выдвижной список страниц ──────────────────── */
+
+@media (max-width: 820px) {
+  #stage { --hud-space: 82px; padding: 12px 10px var(--hud-space); }
+
+  .brand-text strong { font-size: 14.5px; }
+  .brand-sub { font-size: 11px; }
+
+  #hud { gap: 6px; padding: 5px 8px; }
+  #page-label { min-width: 52px; font-size: 12px; }
+  .hud-step { width: 34px; height: 34px; }   /* палец попадает без промаха */
+  #slider { width: clamp(88px, 34vw, 220px); }
+
+  /* список страниц — лист снизу во весь экран */
+  #thumbs {
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    position: fixed;
+    inset: 0;
+    width: auto;
+    border: 0;
+    border-radius: 0;
+    background: rgba(8, 11, 16, .96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    transform: translateY(100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--t-panel) var(--ease-drawer), opacity 200ms var(--ease-out);
+    z-index: 40;
+  }
+
+  #thumbs.open {
+    width: auto;
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .thumbs-head {
+    height: calc(52px + var(--safe-t));
+    padding: var(--safe-t) 14px 0;
+    font-size: 12px;
+  }
+
+  #thumbs-list {
+    height: calc(100% - 52px - var(--safe-t) - var(--safe-b));
+    padding: 14px 14px calc(20px + var(--safe-b));
+    --thumb-w: clamp(130px, 38vw, 200px);   /* два разворота в ряд на телефоне */
+    gap: 12px;
+  }
+
+  .thumb { border-radius: 9px; }
+  .thumb-label { font-size: 11px; padding: 2px 6px; }
+}
+
+@media (max-width: 420px) {
+  #hint { font-size: 11.5px; padding: 8px 12px; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+  .brand-mark { display: none; }
+}
+
+/* ── Пальцевые цели: не меньше 44 px по короткой стороне ────────────────── */
+
+@media (hover: none) and (pointer: coarse) {
+  .tool { width: 42px; height: 42px; }
+  .tool svg { width: 20px; height: 20px; }
+  .tool-sm { width: 40px; height: 40px; }
+  .hud-step { width: 44px; height: 44px; }
+  .hud-step svg { width: 19px; height: 19px; }
+  #slider { height: 30px; }
+
+  /* на сенсоре листаем свайпом и тапом, увеличиваем щипком */
+  .nav { display: none; }
+  #btn-zoom-in, #btn-zoom-out { display: none; }
+}
+
+/* ── Скрытый интерфейс (режим чтения) ───────────────────────────────────── */
+
+#app[data-chrome="hidden"] .topbar,
+#app[data-chrome="hidden"] #hud,
+#app[data-chrome="hidden"] .nav {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#app[data-chrome="hidden"] .topbar { transform: translateY(-100%); }
+#app[data-chrome="hidden"] #hud { transform: translateX(-50%) translateY(140%); }
+
+.topbar { transition: opacity var(--t-ui) var(--ease-out), transform var(--t-ui) var(--ease-out); }
+
+/* ── Доступность ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media print {
+  .topbar, #hud, .nav, #thumbs, #loader, #hint, .chip { display: none !important; }
+}
