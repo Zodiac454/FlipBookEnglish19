@@ -285,6 +285,14 @@ check('клик по развороту открывает его первую �
   `клик по карточке «${clicked}» → открыто ${jumped}`);
 await evaluate(`document.querySelector('#thumbs-close')?.click()`);
 
+/* ── 9. Ссылка на страницу, вставленная в открытую книгу ───────────────── */
+await device(1440, 900, 1, false);
+await open(`${URL_UNDER_TEST}?reg=9#p=2`, 4200);
+await evaluate(`location.hash = 'p=20'`);
+await sleep(1500);
+const afterHashJump = await evaluate(`document.querySelector('#page-label').textContent`);
+check('смена хэша в открытой книге перелистывает', afterHashJump.startsWith('20 '), `открыто ${afterHashJump}`);
+
 /* ── итог ────────────────────────────────────────────────────────────────── */
 writeFileSync(`${OUT}/regression-report.json`, JSON.stringify({ results, failures }, null, 2));
 console.log(`\nПроверок: ${results.length}, провалено: ${failures}`);

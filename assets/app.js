@@ -729,6 +729,14 @@
     resizeTimer = setTimeout(refit, 260);
   });
 
+  /* Если ссылку на страницу вставили в уже открытую книгу (меняется только хэш,
+     документ не перезагружается) — переходим на нужную страницу сами.
+     replaceState в syncUI события hashchange не вызывает, петли нет. */
+  window.addEventListener('hashchange', () => {
+    const n = startPageFromUrl();
+    if (n !== current) jumpTo(n);
+  });
+
   /* Надёжнее, чем событие resize: ловит любые изменения размеров сцены —
      поворот телефона, скрытие адресной строки, открытие панели страниц. */
   if ('ResizeObserver' in window) {
